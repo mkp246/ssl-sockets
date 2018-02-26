@@ -1,0 +1,6 @@
+TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P328 (0xc02b)
+    keyEx Sig        bulk enc    mAuth  elliptic curve
+
+
+https://security.stackexchange.com/questions/45963/diffie-hellman-key-exchange-in-plain-english
+https://blog.cloudflare.com/a-relatively-easy-to-understand-primer-on-elliptic-curve-cryptography/
