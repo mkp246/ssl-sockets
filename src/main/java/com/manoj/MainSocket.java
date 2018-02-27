@@ -1,5 +1,7 @@
 package com.manoj;
 
+import com.google.crypto.tink.subtle.X25519;
+import com.sun.deploy.util.ArrayUtil;
 import org.apache.commons.codec.binary.Hex;
 
 import java.io.DataInputStream;
@@ -7,14 +9,16 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.util.Arrays;
 
 public class MainSocket {
   public static final String PROXY_HOST = "web-proxy.in.hpecorp.net";
   public static final int PROXY_PORT = 8080;
 
-  public static void main(String[] args) throws IOException, InterruptedException {
+  public static void main(String[] args) throws IOException, InterruptedException, InvalidKeyException {
 
     Socket socket = new Socket(PROXY_HOST, PROXY_PORT);
     DataInputStream input = new DataInputStream(socket.getInputStream());
@@ -44,6 +48,17 @@ public class MainSocket {
     byte[] serverKeyExchangeBytes = parseAndReadHandshakeMessage(input);
     byte[] serverHelloDoneBytes = parseAndReadHandshakeMessage(input);
 
+    ECDHParams ecdhParams = ECDHParams.parseMessage(serverKeyExchangeBytes);
+
+    byte[] clientPrivateKey = X25519.generatePrivateKey();
+    byte[] clientPublicKey = X25519.publicFromPrivate(clientPrivateKey);
+
+    byte[] sharedSecret = X25519.computeSharedSecret(clientPrivateKey, ecdhParams.publicKey);
+
+    output.write(getTlsClientKeyExchangeBytes(clientPublicKey));
+    output.write(getTlsChangeCipherSpecBytes());
+    output.write(getTlsEncryptedHandshakeBytes());
+
     Arrays.fill(bytes, (byte) 0);
     int read;
     while (input.available() > 0) {
@@ -54,6 +69,48 @@ public class MainSocket {
     output.close();
     input.close();
     socket.close();
+  }
+
+  private static byte[] getTlsEncryptedHandshakeBytes() {
+    char packet_chars[] = {
+            0x16, //tls handshake content type
+            0x03, 0x03, //tls v1.2
+            0x00, 0x28, //len 40
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xd5, 0xc9, 0x0b, 0x3e, 0x3d, 0x7f, 0x61, 0x70,
+            0xe9, 0x71, 0x7f, 0xad, 0xe1, 0x9f, 0x3d, 0x5b,
+            0x79, 0x32, 0x79, 0x3a, 0x13, 0x62, 0x60, 0xa0,
+            0x27, 0x5d, 0xb1, 0xe3, 0x09, 0x69, 0x65, 0x52
+    };
+    return new String(packet_chars).getBytes(StandardCharsets.ISO_8859_1);
+  }
+
+  private static byte[] getTlsChangeCipherSpecBytes() {
+    byte[] bytes = {
+            0x14, //content type : change cipher spec
+            0x03, 0x03, //tls v1.2
+            0x00, 0x01, //len 1
+            0x01 //change cipher spec message
+    };
+    return bytes;
+  }
+
+  private static byte[] getTlsClientKeyExchangeBytes(byte[] clientPublicKey) {
+    byte[] clientBytes = {
+            0x16,  //tls handshake
+            0x03, 0x03, //tls version 1.2
+            0x00, 0x25, //length
+            0x10, //handshake client key exchange
+            0x00, 0x00, 0x21, //length
+            32 //pubkey length
+    };
+    return concat(clientBytes, clientPublicKey);
+  }
+
+  public static byte[] concat(byte[] first, byte[] second) {
+    byte[] result = Arrays.copyOf(first, first.length + second.length);
+    System.arraycopy(second, 0, result, first.length, second.length);
+    return result;
   }
 
   protected static byte[] parseAndReadHandshakeMessage(DataInputStream input) throws IOException {
@@ -87,7 +144,7 @@ public class MainSocket {
   public static char[] getTlsHelloRequestBytes() {
     char[] helloBytes = {// TLS record
             0x16, //content type : handshake
-            0x03, 0x03, //tls version 1.0
+            0x03, 0x03, //tls version 1.2
             0x00, 0xba, //record length
             0x01, //handshake protocol : client hello
             0x00, 0x00, 0xb6, //length  removed 9 bits as status request extension is removed now

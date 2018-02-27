@@ -1,6 +1,10 @@
 TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P328 (0xc02b)
-    keyEx Sig        bulk enc    mAuth  elliptic curve
-
+    keyEx Sign       bulk enc    mAuth  elliptic curve
+[SSL/TLS]_[key exchange]_[signature algorithm]_WITH_[block cipher]_[authentication hash]
 
 https://security.stackexchange.com/questions/45963/diffie-hellman-key-exchange-in-plain-english
 https://blog.cloudflare.com/a-relatively-easy-to-understand-primer-on-elliptic-curve-cryptography/
+https://adambard.com/blog/the-new-ssl-basics/
+https://stackoverflow.com/questions/25261823/ecdsa-signature-generation-using-secp256r1-curve-and-sha256-algorithm-bouncyca
+https://security.stackexchange.com/questions/20803/how-does-ssl-tls-work/20847#20847
+https://connect2id.com/products/nimbus-jose-jwt/examples/jws-with-ec-signature
